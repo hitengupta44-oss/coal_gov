@@ -4,13 +4,16 @@ import { useAuth } from "../../lib/useAuth";
 import { getDashboardSummary, getHighRiskMines } from "../../lib/api";
 
 function CorporateDashboardContent() {
-  const { profile, logout } = useAuth();
+  const { profile, logout, getIdToken } = useAuth();
   const [summary, setSummary] = useState(null);
   const [riskMines, setRiskMines] = useState(null);
 
   useEffect(() => {
-    getDashboardSummary("All").then(setSummary).catch(console.error);
-    getHighRiskMines(10).then(setRiskMines).catch(console.error);
+    (async () => {
+      const idToken = await getIdToken();
+      getDashboardSummary(idToken, "All").then(setSummary).catch(console.error);
+      getHighRiskMines(idToken, 10).then(setRiskMines).catch(console.error);
+    })();
   }, []);
 
   return (
