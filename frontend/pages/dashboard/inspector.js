@@ -5,7 +5,7 @@ import { logFieldInspection } from "../../lib/api";
 import { supabase } from "../../lib/supabase";
 
 function InspectorDashboardContent() {
-  const { profile, logout } = useAuth();
+  const { profile, logout, getIdToken } = useAuth();
   const [mineId, setMineId] = useState("");
   const [obsType, setObsType] = useState("Safety Equipment Check");
   const [severity, setSeverity] = useState("Low");
@@ -17,10 +17,10 @@ function InspectorDashboardContent() {
       setStatus("Geolocation not available on this device.");
       return;
     }
+    const idToken = await getIdToken();
     navigator.geolocation.getCurrentPosition(async (pos) => {
-      const result = await logFieldInspection({
+      const result = await logFieldInspection(idToken, {
         mineId,
-        inspectorId: profile.profile_id,
         latitude: pos.coords.latitude,
         longitude: pos.coords.longitude,
         observationType: obsType,
