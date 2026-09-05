@@ -7,15 +7,16 @@ import { supabase } from "../../lib/supabase";
 const STATUS_OPTIONS = ["Completed", "Pending", "Overdue", "Not Applicable"];
 
 function ManagerDashboardContent() {
-  const { profile, logout } = useAuth();
+  const { profile, logout, getIdToken } = useAuth();
   const [compliance, setCompliance] = useState(null);
   const [grievances, setGrievances] = useState(null);
   const [contractors, setContractors] = useState(null);
   const [savingId, setSavingId] = useState(null);
 
-  const loadCompliance = () => {
+  const loadCompliance = async () => {
     if (!profile?.mine_id) return;
-    getComplianceStatus(profile.mine_id).then(setCompliance).catch(console.error);
+    const idToken = await getIdToken();
+    getComplianceStatus(idToken, profile.mine_id).then(setCompliance).catch(console.error);
   };
 
   useEffect(() => {
@@ -37,7 +38,8 @@ function ManagerDashboardContent() {
   const handleStatusChange = async (trackingId, newStatus) => {
     setSavingId(trackingId);
     try {
-      await updateComplianceStatus(trackingId, newStatus, "", profile?.firebase_uid || "");
+      const idToken = await getIdToken();
+      await updateComplianceStatus(idToken, trackingId, newStatus, "");
       loadCompliance(); // refetch so due_date/completed_date/status all stay in sync
     } catch (err) {
       console.error(err);
