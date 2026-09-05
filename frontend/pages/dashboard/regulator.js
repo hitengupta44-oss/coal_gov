@@ -5,12 +5,15 @@ import { getDashboardSummary } from "../../lib/api";
 import { supabase } from "../../lib/supabase";
 
 function RegulatorDashboardContent() {
-  const { profile, logout } = useAuth();
+  const { profile, logout, getIdToken } = useAuth();
   const [summary, setSummary] = useState(null);
   const [auditLog, setAuditLog] = useState(null);
 
   useEffect(() => {
-    getDashboardSummary("All").then(setSummary).catch(console.error);
+    (async () => {
+      const idToken = await getIdToken();
+      getDashboardSummary(idToken, "All").then(setSummary).catch(console.error);
+    })();
     supabase.from("audit_log").select("*").order("timestamp", { ascending: false }).limit(20)
       .then(({ data }) => setAuditLog(data));
   }, []);
