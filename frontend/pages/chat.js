@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { chatWithAssistant } from "../lib/api";
+import { useAuth } from "../lib/useAuth";
 
 export default function Chat() {
+  const { getIdToken } = useAuth();
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
@@ -12,7 +14,8 @@ export default function Chat() {
     setInput("");
     setSending(true);
     try {
-      const reply = await chatWithAssistant(userMsg, messages.map((m) => [m.user, m.bot]));
+      const idToken = await getIdToken();
+      const reply = await chatWithAssistant(idToken, userMsg, messages.map((m) => [m.user, m.bot]));
       setMessages((prev) => [...prev, { user: userMsg, bot: reply }]);
     } catch (e) {
       setMessages((prev) => [...prev, { user: userMsg, bot: `Error: ${e.message}` }]);
