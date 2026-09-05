@@ -1,6 +1,13 @@
-// Calls the Gradio backend (deployed on Hugging Face Spaces).
-// Gradio's REST convention: POST to /run/<function_name> with
-// { "data": [arg1, arg2, ...] } in the same order as the Python function args.
+// Calls the backend (deployed on Hugging Face Spaces).
+//
+// URL FIX: this used to POST to /run/<function_name>, which was Gradio's
+// REST convention in version 3.x. Gradio 4.x removed that endpoint --
+// its own auto-generated API now needs a two-step POST-then-GET/SSE
+// flow under /gradio_api/call/<name>. Instead of teaching this frontend
+// to parse Gradio's SSE stream, backend/app.py mounts a small plain
+// FastAPI layer at /api/<function_name> with the exact same request/
+// response shape as before ({"data": [...]} in, {"data": [...]} out) --
+// see the "PLAIN REST API LAYER" section at the bottom of app.py.
 //
 // SECURITY UPDATE: every function below now takes idToken as its FIRST
 // argument, matching backend/app.py's _authenticate(id_token) on every
@@ -11,7 +18,7 @@
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL; // e.g. https://yourname-coal-backend.hf.space
 
 async function callBackend(fnName, args = []) {
-  const res = await fetch(`${BACKEND_URL}/run/${fnName}`, {
+  const res = await fetch(`${BACKEND_URL}/api/${fnName}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ data: args }),
