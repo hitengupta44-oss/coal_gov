@@ -1,6 +1,12 @@
 // Calls the Gradio backend (deployed on Hugging Face Spaces).
 // Gradio's REST convention: POST to /run/<function_name> with
 // { "data": [arg1, arg2, ...] } in the same order as the Python function args.
+//
+// SECURITY UPDATE: every function below now takes idToken as its FIRST
+// argument, matching backend/app.py's _authenticate(id_token) on every
+// endpoint. Get the token from useAuth()'s getIdToken() right before
+// calling -- it's a fresh JWT each time (cheap, auto-refreshed by the
+// Firebase SDK), don't cache it yourself.
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL; // e.g. https://yourname-coal-backend.hf.space
 
@@ -15,16 +21,20 @@ async function callBackend(fnName, args = []) {
   return json.data ? json.data[0] : json;
 }
 
-export const getDashboardSummary = (subsidiaryFilter = "All") =>
-  callBackend("get_dashboard_summary", [subsidiaryFilter]);
+export const getDashboardSummary = (idToken, subsidiaryFilter = "All") =>
+  callBackend("get_dashboard_summary", [idToken, subsidiaryFilter]);
 
-export const getHighRiskMines = (limit = 10) =>
-  callBackend("get_high_risk_mines", [limit]);
+export const getHighRiskMines = (idToken, limit = 10) =>
+  callBackend("get_high_risk_mines", [idToken, limit]);
 
-export const logFieldInspection = (payload) =>
+// NOTE: inspectorId is no longer sent -- the backend derives the inspector's
+// identity from their own verified idToken (see log_field_inspection's
+// SECURITY FIX comment in app.py), so a caller can't log an inspection
+// under someone else's name.
+export const logFieldInspection = (idToken, payload) =>
   callBackend("log_field_inspection", [
+    idToken,
     payload.mineId,
-    payload.inspectorId,
     payload.latitude,
     payload.longitude,
     payload.observationType,
@@ -32,23 +42,28 @@ export const logFieldInspection = (payload) =>
     payload.notes || "",
   ]);
 
-export const getComplianceStatus = (mineId) =>
-  callBackend("get_compliance_status", [mineId]);
+export const getComplianceStatus = (idToken, mineId) =>
+  callBackend("get_compliance_status", [idToken, mineId]);
 
-export const updateComplianceStatus = (trackingId, newStatus, remarks = "", actorUid = "") =>
-  callBackend("update_compliance_status", [trackingId, newStatus, remarks, actorUid]);
+// NOTE: actorUid is no longer sent -- the backend logs the audit entry
+// using the uid derived from idToken, which is more trustworthy than a
+// client-supplied value anyway.
+export const updateComplianceStatus = (idToken, trackingId, newStatus, remarks = "") =>
+  callBackend("update_compliance_status", [idToken, trackingId, newStatus, remarks]);
 
-export const chatWithAssistant = (message, history = []) =>
-  callBackend("chat_with_data_assistant", [message, history]);
+export const chatWithAssistant = (idToken, message, history = []) =>
+  callBackend("chat_with_data_assistant", [idToken, message, history]);
 
-// Admin-only -- both require adminKey, checked server-side against
-// ADMIN_SECRET_KEY. See the SECURITY NOTE in backend/app.py above these
-// two functions for why this is a shared-secret stopgap, not real auth.
-export const listPendingSignups = (adminKey) =>
-  callBackend("list_pending_signups", [adminKey]);
+// Admin-only. Real gating is now the caller's OWN Firebase-verified role
+// being 'admin' (checked server-side against user_profiles) -- adminKey is
+// just an optional second factor on top, only enforced if ADMIN_SECRET_KEY
+// is set in the backend's secrets. Pass "" if you haven't set one.
+export const listPendingSignups = (idToken, adminKey = "") =>
+  callBackend("list_pending_signups", [idToken, adminKey]);
 
-export const approveUserRole = (adminKey, payload) =>
+export const approveUserRole = (idToken, adminKey, payload) =>
   callBackend("approve_user_role", [
+    idToken,
     adminKey,
     payload.firebaseUid,
     payload.email,
