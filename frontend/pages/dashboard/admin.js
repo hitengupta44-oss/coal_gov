@@ -16,7 +16,7 @@ const ROLE_OPTIONS = [
 const MINE_SCOPED_ROLES = new Set(["worker", "inspector", "mine_official"]);
 
 function AdminDashboardContent() {
-  const { profile, logout } = useAuth();
+  const { profile, logout, getIdToken } = useAuth();
   const [pending, setPending] = useState(null);
   const [error, setError] = useState(null);
   const [mines, setMines] = useState([]);
@@ -24,12 +24,9 @@ function AdminDashboardContent() {
   const [drafts, setDrafts] = useState({}); // firebase_uid -> { role, mineId, subsidiaryId, fullName }
   const [savingUid, setSavingUid] = useState(null);
 
-  const loadPending = () => {
-    if (!ADMIN_API_KEY) {
-      setError("NEXT_PUBLIC_ADMIN_API_KEY isn't set -- add it to .env.local (see .env.local.example).");
-      return;
-    }
-    listPendingSignups(ADMIN_API_KEY)
+  const loadPending = async () => {
+    const idToken = await getIdToken();
+    listPendingSignups(idToken, ADMIN_API_KEY || "")
       .then((result) => {
         if (result?.error) setError(result.error);
         else { setPending(result); setError(null); }
@@ -57,7 +54,8 @@ function AdminDashboardContent() {
     }
     setSavingUid(user.firebase_uid);
     try {
-      const result = await approveUserRole(ADMIN_API_KEY, {
+      const idToken = await getIdToken();
+      const result = await approveUserRole(idToken, ADMIN_API_KEY || "", {
         firebaseUid: user.firebase_uid,
         email: user.email,
         fullName: draft.fullName || user.display_name || "",
